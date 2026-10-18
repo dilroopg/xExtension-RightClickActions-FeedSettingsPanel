@@ -1,0 +1,120 @@
+<?php
+declare(strict_types=1);
+/** @var RightClickActionsFeedSettingsPanelExtension $this */
+$ext = Minz_ExtensionManager::findExtension('Right Click Actions - Feed Settings Panel');
+$state = $ext instanceof RightClickActionsFeedSettingsPanelExtension ? $ext->readState() : [];
+$defs = RightClickActionsFeedSettingsPanelExtension::fieldDefs();
+$groups = RightClickActionsFeedSettingsPanelExtension::groups();
+
+// The sidebar button lives in the Right Click Actions menu, so say so plainly
+// instead of letting the user wonder why nothing appears.
+$rca = Minz_ExtensionManager::findExtension('Right-Click Actions');
+$rcaEnabled = $rca !== null && $rca->isEnabled();
+
+// A short list to open the panel with directly, so the feature is reachable
+// even with Right Click Actions off.
+$quickFeeds = [];
+$feedDAO = FreshRSS_Factory::createFeedDao();
+foreach ($feedDAO->listFeeds() as $f) {
+	$quickFeeds[] = ['id' => (string)$f->id(), 'name' => $f->name()];
+}
+usort($quickFeeds, fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+?>
+<div class="fsp-conf">
+	<h1><?= _t('ext.feed_settings_panel.panel_title') ?></h1>
+
+	<div class="fsp-dep<?= $rcaEnabled ? '' : ' fsp-dep-off' ?>">
+		<?php if ($rcaEnabled): ?>
+			<strong>Works with Right Click Actions.</strong>
+			This adds one button, <em>Feed settings (panel)</em>, to that extension's right-click menu
+			on sidebar feeds — plus a <em>Right-click a feed</em> popup in the article list.
+			Turning Right Click Actions off removes the sidebar entry (and that menu entirely).
+		<?php else: ?>
+			<strong>Right Click Actions is disabled.</strong>
+			The sidebar right-click button will not appear until it is enabled.
+			Until then the panel still opens by right-clicking a feed in the article list,
+			or with the <em>Open panel for…</em> button below.
+		<?php endif; ?>
+	</div>
+
+	<div class="fsp-quick">
+		<label class="fsp-quick-label" for="fsp-quick-feed">Open panel for</label>
+		<select id="fsp-quick-feed" class="fsp-quick-select">
+			<option value="">Choose a feed…</option>
+			<?php foreach ($quickFeeds as $f): ?>
+				<option value="<?= htmlspecialchars($f['id'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($f['name'], ENT_NOQUOTES, 'UTF-8') ?></option>
+			<?php endforeach; ?>
+		</select>
+		<button type="button" class="btn" id="fsp-quick-open">Open panel</button>
+	</div>
+
+	<form method="post" action="<?= _url('extension', 'configure', 'e', urlencode($this->getName())) ?>" id="fsp-form">
+		<input type="hidden" name="_csrf" value="<?= FreshRSS_Auth::csrfToken() ?>" />
+		<input type="hidden" name="act" value="save_fields" />
+
+		<div class="fsp-cols">
+			<div class="fsp-toggles">
+				<?php foreach ($groups as $group): ?>
+					<?php
+						$inGroup = array_filter($defs, fn(array $d): bool => $d['group'] === $group);
+						if (empty($inGroup)) {
+							continue;
+						}
+					?>
+					<div class="fsp-group" data-group="<?= htmlspecialchars($group, ENT_QUOTES, 'UTF-8') ?>">
+						<div class="fsp-group-head">
+							<span class="fsp-group-name"><?= htmlspecialchars($group, ENT_NOQUOTES, 'UTF-8') ?></span>
+							<button type="button" class="fsp-group-all" data-group="<?= htmlspecialchars($group, ENT_QUOTES, 'UTF-8') ?>">toggle all</button>
+						</div>
+
+						<?php foreach ($inGroup as $key => $def): ?>
+						<label class="fsp-row<?= $def['writes'] ? '' : ' fsp-row-ro' ?>" for="f_<?= $key ?>" title="<?= htmlspecialchars($def['hint'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+							<span class="fsp-switch">
+								<input type="checkbox" name="f_<?= $key ?>" id="f_<?= $key ?>" value="1"
+									data-key="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>"
+									data-group="<?= htmlspecialchars($group, ENT_QUOTES, 'UTF-8') ?>"
+									data-type="<?= htmlspecialchars($def['type'], ENT_QUOTES, 'UTF-8') ?>"
+									<?= !empty($state[$key]) ? ' checked="checked"' : '' ?> />
+								<span class="fsp-track" aria-hidden="true"><span class="fsp-knob"></span></span>
+							</span>
+							<span class="fsp-name"><?= htmlspecialchars($def['label'], ENT_NOQUOTES, 'UTF-8') ?></span>
+							<?php if (!$def['writes']): ?>
+								<span class="fsp-tag"><?= _t('ext.feed_settings_panel.tag_readonly') ?></span>
+							<?php endif; ?>
+						</label>
+						<?php endforeach; ?>
+					</div>
+				<?php endforeach; ?>
+
+				<div class="fsp-actions">
+					<button type="submit" class="btn btn-important"><?= _t('gen.action.submit') ?></button>
+					<span class="fsp-hint" id="fsp-hint"></span>
+				</div>
+			</div>
+
+			<div class="fsp-preview-wrap">
+				<div class="fsp-preview-head"><?= _t('ext.feed_settings_panel.preview_title') ?></div>
+				<div class="fsp-preview" id="fsp-preview" aria-hidden="true">
+					<div class="fsp-panel">
+						<div class="fsp-head">
+							<span class="fsp-title">Example Feed</span>
+							<button type="button" class="fsp-close" tabindex="-1">&times;</button>
+						</div>
+						<div class="fsp-body">
+							<div class="fsp-form" id="fsp-preview-form"></div>
+						</div>
+						<div class="fsp-foot">
+							<div class="fsp-actions">
+								<button type="button" class="fsp-btn fsp-btn-primary" tabindex="-1">Save</button>
+								<button type="button" class="fsp-btn" tabindex="-1">Cancel</button>
+								<span class="fsp-btn fsp-btn-quiet">Open full page</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<p class="fsp-foot-note"><?= _t('ext.feed_settings_panel.foot') ?></p>
+</div>

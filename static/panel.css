@@ -1,0 +1,171 @@
+/* Feed Settings Panel — floating panel.
+   All colours come from the active theme's own custom properties, so this
+   follows the theme instead of guessing at it. Fallbacks only apply where a
+   theme omits a variable. */
+
+.fsp-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: var(--background-color-dark-transparent, rgba(0, 0, 0, .55));
+	padding: 1.5rem;
+}
+.fsp-overlay.fsp-open { display: flex; }
+
+.fsp-panel {
+	width: min(560px, 100%);
+	max-height: min(88vh, 780px);
+	display: flex;
+	flex-direction: column;
+	background: var(--background-color-dark, #171717);
+	color: var(--font-color-light, #ccc);
+	border: 1px solid var(--border-color-dark, #333);
+	border-radius: 4px;
+	box-shadow: 0 18px 50px var(--background-color-slider-shadow, rgba(0, 0, 0, .5));
+	overflow: hidden;
+	font-size: .95rem;
+}
+
+.fsp-head {
+	display: flex;
+	align-items: center;
+	gap: .75rem;
+	padding: .7rem 1rem;
+	background: var(--background-color-middle, #1f1f1f);
+	border-bottom: 1px solid var(--border-color-dark, #333);
+}
+.fsp-title {
+	flex: 1;
+	font-weight: 600;
+	color: var(--font-color-light, #ccc);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.fsp-close {
+	background: none;
+	border: 0;
+	color: inherit;
+	font-size: 1.4rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 .25rem;
+	opacity: .6;
+}
+.fsp-close:hover {
+	opacity: 1;
+	color: var(--contrast-border-color-hover, #0078e0);
+}
+
+.fsp-body {
+	padding: 1rem;
+	overflow-y: auto;
+	flex: 1;
+}
+
+.fsp-form { display: flex; flex-direction: column; gap: .7rem; }
+.fsp-field { display: flex; flex-direction: column; gap: .25rem; }
+.fsp-label {
+	font-size: .8rem;
+	font-weight: 600;
+	letter-spacing: .01em;
+	color: var(--font-color-middle, #999);
+}
+
+/* Match the theme's own form controls rather than inventing a look. */
+.fsp-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: .45rem .6rem;
+	border-radius: 3px;
+	border: 1px solid var(--border-color-middle, #666);
+	background: var(--background-color-light, #262626);
+	color: var(--font-color-middle, #999);
+	font: inherit;
+}
+.fsp-input:hover {
+	border-color: var(--contrast-border-color-hover, #0078e0);
+}
+.fsp-input:focus {
+	outline: none;
+	border-color: var(--contrast-border-color-hover, #0078e0);
+	color: var(--font-color-light, #ccc);
+}
+
+.fsp-foot {
+	padding: .7rem 1rem;
+	background: var(--background-color-middle, #1f1f1f);
+	border-top: 1px solid var(--border-color-dark, #333);
+	display: flex;
+	flex-direction: column;
+	gap: .55rem;
+}
+.fsp-actions { display: flex; align-items: center; gap: .5rem; }
+.fsp-status { font-size: .8rem; color: var(--font-color-dark, #666); }
+
+.fsp-btn {
+	cursor: pointer;
+	padding: .4rem .85rem;
+	border-radius: 3px;
+	border: 1px solid var(--border-color-middle, #666);
+	background: transparent;
+	color: var(--font-color-light, #ccc);
+	font: inherit;
+	text-decoration: none;
+	line-height: 1.2;
+}
+.fsp-btn:hover {
+	border-color: var(--contrast-border-color-hover, #0078e0);
+	color: var(--contrast-background-color-hover, #0078e0);
+}
+.fsp-btn-primary {
+	background: var(--contrast-background-color, #0062b7);
+	border-color: var(--contrast-background-color, #0062b7);
+	color: var(--contrast-background-font-color, #eee);
+	font-weight: 600;
+}
+.fsp-btn-primary:hover {
+	background: var(--contrast-background-color-hover, #0078e0);
+	border-color: var(--contrast-background-color-hover, #0078e0);
+	color: var(--contrast-background-font-color, #eee);
+}
+.fsp-btn-primary[disabled] {
+	opacity: .55;
+	cursor: default;
+	background: var(--contrast-background-color-active, #003461);
+}
+.fsp-btn-quiet {
+	margin-left: auto;
+	border-color: transparent;
+	font-size: .85rem;
+	color: var(--font-color-middle, #999);
+}
+.fsp-btn-quiet:hover { border-color: transparent; }
+
+.fsp-loading, .fsp-empty, .fsp-error {
+	padding: 1.5rem .5rem;
+	text-align: center;
+	color: var(--font-color-middle, #999);
+}
+.fsp-error { color: var(--font-color-error, #912621); }
+
+.fsp-toast {
+	position: fixed;
+	bottom: 1.25rem;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 9500;
+	background: var(--contrast-background-color, #0062b7);
+	color: var(--contrast-background-font-color, #eee);
+	padding: .6rem 1rem;
+	border-radius: 3px;
+	font-size: .9rem;
+	box-shadow: 0 6px 20px var(--background-color-slider-shadow, rgba(0, 0, 0, .5));
+}
+.fsp-toast-error {
+	background: var(--contrast-attention-background-color, #912621);
+	color: var(--contrast-attention-font-color, #eee);
+}

@@ -1,0 +1,8 @@
+{
+	"name": "Right Click Actions - Feed Settings Panel",
+	"author": "dilroopg",
+	"description": "Adds a \"Feed settings (panel)\" button to the Right Click Actions menu: opens a feed's settings in a floating panel over the current page instead of navigating away. Requires the Right Click Actions extension — it adds one item to that extension's right-click menu and does nothing on its own. Which fields appear is chosen on the extension page.",
+	"version": "1.1.0",
+	"entrypoint": "RightClickActionsFeedSettingsPanel",
+	"type": "user"
+}

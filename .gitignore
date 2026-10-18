@@ -1,0 +1,5 @@
+*.token
+state.json
+thumbs/
+node_modules/
+.DS_Store
