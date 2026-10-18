@@ -6,6 +6,8 @@ declare(strict_types=1);
  *
  *   GET  ?c=fsp&a=panel&id=<feed id>  -> JSON for the panel's enabled fields
  *   POST ?c=fsp&a=save               -> writes only the fields the user enabled
+ *   POST ?c=fsp&a=action             -> remove / refresh / delete / reload
+ *   GET  ?c=fsp&a=export&id=<feed id>-> the feed's articles as OPML
  *
  * The save deliberately does NOT go through core's subscription/feed POST: that
  * handler treats a missing `url` as an error and redirects the whole page.
@@ -17,6 +19,9 @@ declare(strict_types=1);
 final class FreshExtension_fsp_Controller extends Minz_ActionController
 {
 	private const EXT_NAME = 'Right Click Actions - Feed Settings Panel';
+
+	/** Every action the panel can run, in menu order. */
+	private const ACTIONS = ['action_refresh_feed', 'action_reload_articles', 'action_delete_articles', 'action_export', 'action_remove_feed'];
 
 	/** Attribute-backed fields: key => attribute name (same names core uses). */
 	private const BOOL_ATTRS = [
@@ -54,11 +59,151 @@ final class FreshExtension_fsp_Controller extends Minz_ActionController
 			'ok' => true,
 			'id' => $feed->id(),
 			'fields' => $enabled,
+			'actions' => $this->enabledActions(),
 			'values' => $this->readValues($feed),
 			'categories' => $categories,
 			'unread' => $feed->nbNotRead(),
 			'total' => $feed->nbEntries(),
 		]);
+	}
+
+	/**
+	 * The four buttons the panel can offer. Which ones exist is decided here,
+	 * from the same state file the field toggles use, so a request can never
+	 * run an action the user left switched off.
+	 */
+	public function actionAction(): void
+	{
+		if (!Minz_Request::isPost()) {
+			$this->sendJson(['error' => 'POST required'], 405);
+		}
+		if (!FreshRSS_Auth::isCsrfOk()) {
+			$this->sendJson(['error' => 'Invalid CSRF token'], 403);
+		}
+
+		$op = Minz_Request::paramString('op');
+		if (!in_array($op, self::ACTIONS, true)) {
+			$this->sendJson(['error' => 'Unknown action'], 400);
+		}
+		// The panel only draws buttons for switched-on actions, so seeing the
+		// button is the authorisation. A stale page still gets refused here.
+		if (!in_array($op, $this->enabledActions(), true)) {
+			$this->sendJson([
+				'error' => 'That action was switched off on the extension page. Reload this page and try again.',
+			], 403);
+		}
+
+		$id = Minz_Request::paramInt('id');
+		if ($id <= 0) {
+			$this->sendJson(['error' => 'Missing feed id'], 400);
+		}
+		$feedDAO = FreshRSS_Factory::createFeedDao();
+		$feed = $feedDAO->searchById($id);
+		if ($feed === null) {
+			$this->sendJson(['error' => 'Feed not found'], 404);
+		}
+		$name = $feed->name();
+
+		switch ($op) {
+			case 'refresh':
+				// Core's own path: reset lastUpdate so the fetch is not skipped,
+				// then let the controller do the actualizing and commit.
+				$feedDAO->updateFeed($id, ['lastUpdate' => 0]);
+				FreshRSS_feed_Controller::actualizeFeedsAndCommit($id);
+				$feedDAO->updateCachedValues($id);
+				$after = $feedDAO->searchById($id);
+				$this->sendJson([
+					'ok' => true,
+					'message' => 'Updated "' . $name . '" \u{2014} ' . (int)($after?->nbEntries() ?? 0) . ' articles.',
+					'values' => $after === null ? null : $this->readValues($after),
+					'unread' => (int)($after?->nbNotRead() ?? 0),
+					'total' => (int)($after?->nbEntries() ?? 0),
+				]);
+
+			case 'delete':
+				// Core's own truncate(): empties the entries and zeroes the
+				// feed's cached counts in one transaction.
+				$n = $feedDAO->truncate($id);
+				if ($n === false) {
+					$this->sendJson(['error' => 'Could not delete those articles.'], 500);
+				}
+				$after = $feedDAO->searchById($id);
+				$this->sendJson([
+					'ok' => true,
+					'message' => 'Deleted ' . (int)$n . ' articles from "' . $name . '". The feed is kept.',
+					'values' => $after === null ? null : $this->readValues($after),
+					'unread' => 0,
+					'total' => 0,
+				]);
+
+			case 'reload':
+				// Same order core uses: empty the feed, force lastUpdate to 0
+				// so the fetch is not skipped, then actualize.
+				$feedDAO->truncate($id);
+				$feedDAO->updateFeed($id, ['lastUpdate' => 0]);
+				FreshRSS_feed_Controller::actualizeFeedsAndCommit($id);
+				$feedDAO->updateCachedValues($id);
+				$after = $feedDAO->searchById($id);
+				$total = (int)($after?->nbEntries() ?? 0);
+				$this->sendJson([
+					'ok' => true,
+					'message' => $total > 0
+						? 'Reloaded "' . $name . '" \u{2014} ' . $total . ' articles fetched.'
+						: '"' . $name . '" was emptied but the source returned no articles. It is still subscribed.',
+					'values' => $after === null ? null : $this->readValues($after),
+					'unread' => (int)($after?->nbNotRead() ?? 0),
+					'total' => $total,
+				]);
+
+			case 'remove':
+				// deleteFeed() drops the feed row only; the entries must go too.
+				$feedDAO->truncate($id);
+				if ($feedDAO->deleteFeed($id) === false) {
+					$this->sendJson(['error' => 'Could not remove the feed.'], 500);
+				}
+				$this->sendJson(['ok' => true, 'removed' => true, 'message' => 'Removed "' . $name . '".']);
+		}
+
+		$this->sendJson(['error' => 'Unknown action'], 400);
+	}
+
+	/** The feed's articles as OPML, so they can be kept or imported elsewhere. */
+	public function exportAction(): void
+	{
+		$id = Minz_Request::paramInt('id');
+		$feed = $id > 0 ? FreshRSS_Factory::createFeedDao()->searchById($id) : null;
+		if ($feed === null) {
+			$this->sendJson(['error' => 'Feed not found'], 404);
+		}
+		if (!in_array('action_export', $this->enabledActions(), true)) {
+			$this->sendJson(['error' => 'Export is not switched on.'], 403);
+		}
+
+		$entries = FreshRSS_Factory::createEntryDao()->listWhere(
+			type: 'f', id: $id, sort: 'date', order: 'DESC', limit: -1
+		);
+		$esc = static fn(?string $s): string => htmlspecialchars((string)$s, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+			. '<opml version="2.0"><head><title>' . $esc($feed->name()) . '</title></head><body>'
+			. '<outline text="' . $esc($feed->name()) . '" type="rss" xmlUrl="' . $esc($feed->url())
+			. '" htmlUrl="' . $esc($feed->website()) . '" category="' . $esc($feed->category()?->name()) . '">';
+		$n = 0;
+		foreach ($entries as $e) {
+			$xml .= '<outline type="link" text="' . $esc($e->title()) . '"'
+				. ' url="' . $esc($e->link()) . '"'
+				. ' date="' . $esc(date('r', (int)$e->date(true))) . '" />';
+			$n++;
+		}
+		$xml .= '</outline></body></opml>';
+		header('X-Feed-Panel-Articles: ' . $n);
+
+		$slug = preg_replace('/[^a-z0-9]+/i', '-', $feed->name()) ?: 'feed';
+		header('Content-Type: application/xml; charset=utf-8');
+		header('Content-Disposition: attachment; filename="' . trim((string)$slug, '-') . '-articles.opml"');
+		header('Cache-Control: no-store');
+		echo $xml;
+		exit();
 	}
 
 	public function saveAction(): void
@@ -277,6 +422,17 @@ final class FreshExtension_fsp_Controller extends Minz_ActionController
 	{
 		$ext = Minz_ExtensionManager::findExtension(self::EXT_NAME);
 		return $ext instanceof RightClickActionsFeedSettingsPanelExtension ? $ext->enabledFields() : [];
+	}
+
+	/** @return list<string> */
+	private function enabledActions(): array
+	{
+		$ext = Minz_ExtensionManager::findExtension(self::EXT_NAME);
+		if (!$ext instanceof RightClickActionsFeedSettingsPanelExtension) {
+			return [];
+		}
+		$state = $ext->readState();
+		return array_values(array_filter(self::ACTIONS, static fn(string $k): bool => !empty($state[$k])));
 	}
 
 	/** @return array<string,mixed> */

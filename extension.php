@@ -103,12 +103,12 @@ class RightClickActionsFeedSettingsPanelExtension extends Minz_Extension
 			'hint' => 'Re-marks an article unread when its content changes upstream.',
 		],
 		'archive_keep_max' => [
-			'label' => 'Keep at most N articles', 'group' => 'Behaviour', 'type' => 'number', 'writes' => true,
+			'label' => 'Keep at most N articles', 'group' => 'Archiving', 'type' => 'number', 'writes' => true,
 			'placeholder' => 'Empty = keep all',
 			'hint' => 'Older articles beyond this count are deleted on refresh.',
 		],
 		'archive_keep_period' => [
-			'label' => 'Keep articles for', 'group' => 'Behaviour', 'type' => 'select', 'writes' => true,
+			'label' => 'Keep articles for', 'group' => 'Archiving', 'type' => 'select', 'writes' => true,
 			'options' => [
 				['value' => '', 'label' => 'Keep all'],
 				['value' => 'P1W', 'label' => '1 week'],
@@ -132,10 +132,36 @@ class RightClickActionsFeedSettingsPanelExtension extends Minz_Extension
 			'label' => 'Unread / total count', 'group' => 'Info', 'type' => 'info', 'writes' => false,
 			'hint' => 'A read-only line showing this feed\'s article counts.',
 		],
+
+		'action_refresh_feed' => [
+			'label' => 'Update feed now', 'group' => 'Actions', 'type' => 'button', 'writes' => true,
+			'action' => 'refresh',
+			'hint' => 'Fetches this feed immediately instead of waiting for the next scheduled refresh.',
+		],
+		'action_reload_articles' => [
+			'label' => 'Reload articles', 'group' => 'Actions', 'type' => 'button', 'writes' => true,
+			'action' => 'reload',
+			'hint' => 'Deletes this feed\'s stored articles and fetches them again from the source. Ask first: what the source still offers is what comes back.',
+		],
+		'action_delete_articles' => [
+			'label' => 'Delete all articles', 'group' => 'Actions', 'type' => 'button', 'writes' => true,
+			'danger' => true, 'action' => 'delete',
+			'hint' => 'Deletes this feed\'s stored articles and keeps the feed subscribed.',
+		],
+		'action_export' => [
+			'label' => 'Export articles (OPML)', 'group' => 'Actions', 'type' => 'button', 'writes' => false,
+			'link' => true, 'action' => 'export',
+			'hint' => 'Downloads this feed\'s articles as an OPML file. Nothing is changed.',
+		],
+		'action_remove_feed' => [
+			'label' => 'Remove feed', 'group' => 'Actions', 'type' => 'button', 'writes' => true,
+			'danger' => true, 'action' => 'remove',
+			'hint' => 'Unsubscribes the feed and deletes its articles. Ask first: this cannot be undone.',
+		],
 	];
 
 	/** Groups, in the order they appear. */
-	private const GROUPS = ['Feed', 'Refresh', 'Display', 'Behaviour', 'Access', 'Info'];
+	private const GROUPS = ['Feed', 'Refresh', 'Display', 'Behaviour', 'Archiving', 'Access', 'Info', 'Actions'];
 
 	/** Fields enabled before the user touches the extension page. */
 	private const DEFAULT_ENABLED = ['name', 'url', 'description', 'website'];
@@ -168,6 +194,8 @@ class RightClickActionsFeedSettingsPanelExtension extends Minz_Extension
 			// _url() is HTML-escaped; decode so fetch() sends a real '&'.
 			'panelUrl' => html_entity_decode((string)_url('fsp', 'panel'), ENT_QUOTES),
 			'saveUrl' => html_entity_decode((string)_url('fsp', 'save'), ENT_QUOTES),
+			'actionUrl' => html_entity_decode((string)_url('fsp', 'action'), ENT_QUOTES),
+			'exportUrl' => html_entity_decode((string)_url('fsp', 'export'), ENT_QUOTES),
 		];
 		return $vars;
 	}

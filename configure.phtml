@@ -9,6 +9,9 @@ $groups = RightClickActionsFeedSettingsPanelExtension::groups();
 // The sidebar button lives in the Right Click Actions menu, so say so plainly
 // instead of letting the user wonder why nothing appears.
 $rca = Minz_ExtensionManager::findExtension('Right-Click Actions');
+if ($rca === null) {
+	$rca = Minz_ExtensionManager::findExtension('Right Click Actions');
+}
 $rcaEnabled = $rca !== null && $rca->isEnabled();
 
 // A short list to open the panel with directly, so the feature is reachable

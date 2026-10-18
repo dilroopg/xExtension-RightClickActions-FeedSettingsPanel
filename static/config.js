@@ -71,6 +71,12 @@
   function previewRow(key, type) {
     var wrap = el('div', 'fsp-field');
 
+    if (type === 'button') {
+      var b = el('span', 'fsp-action fsp-btn-preview', (ACTION_ICON[key] ? ACTION_ICON[key] + '  ' : '') + labelFor(key));
+      wrap.appendChild(b);
+      return wrap;
+    }
+
     if (type === 'info') {
       wrap.appendChild(el('div', 'fsp-info', SAMPLE[key] || ''));
       return wrap;
@@ -130,6 +136,15 @@
     return wrap;
   }
 
+  // Button glyphs, matching panel.js, for the preview only.
+  var ACTION_ICON = {
+    action_refresh_feed: '\u21BB',
+    action_reload_articles: '\u21BA',
+    action_delete_articles: '\u2716',
+    action_export: '\u2913',
+    action_remove_feed: '\u2716'
+  };
+
   function labelFor(key) {
     var map = {
       name: 'Title', url: 'Feed URL', website: 'Website URL', description: 'Description',
@@ -137,7 +152,10 @@
       show_unread_count: 'Show unread count', display_enclosures: 'Show enclosure links',
       defaultSortOrder: 'Sort order', mark_updated_article_unread: 'Updated articles become unread',
       archive_keep_max: 'Keep at most N articles', archive_keep_period: 'Keep articles for',
-      http_user: 'HTTP username', http_pass: 'HTTP password'
+      http_user: 'HTTP username', http_pass: 'HTTP password',
+      action_refresh_feed: 'Update feed now', action_reload_articles: 'Reload articles',
+      action_delete_articles: 'Delete all articles', action_export: 'Export articles',
+      action_remove_feed: 'Remove feed'
     };
     return map[key] || key;
   }
@@ -156,8 +174,8 @@
 
       if (hint) {
         hint.textContent = on.length === 0
-          ? 'No fields selected — the panel will show nothing.'
-          : on.length + (on.length === 1 ? ' field' : ' fields') + ' will show in the panel.';
+          ? 'Nothing selected — the panel will show nothing.'
+          : on.length + (on.length === 1 ? ' item' : ' items') + ' will show in the panel.';
       }
 
       if (!form) return;

@@ -39,15 +39,34 @@ field adds before you save. Each group has a *toggle all* shortcut.
 | **Feed** | Title, Feed URL, Website URL, Description, Category, Priority |
 | **Refresh** | Refresh interval, Mute |
 | **Display** | Show unread count, Show enclosure links, Sort order |
-| **Behaviour** | Updated articles become unread, Keep at most N articles, Keep articles for |
+| **Behaviour** | Updated articles become unread |
+| **Archiving** | Keep at most N articles, Keep articles for |
 | **Access** | HTTP username, HTTP password |
 | **Info** | Unread / total count (read only) |
+| **Actions** | Update feed now, Reload articles, Delete all articles, Export articles (OPML), Remove feed |
 
-Defaults are Title, Feed URL, Website URL and Description; everything else starts
+22 switches in total — 17 fields and 5 action buttons. Defaults are Title, Feed
+URL, Website URL and Description; everything else, including every action, starts
 off.
 
-Only the fields switched on are rendered **and** sent on save. The enabled list is
-read server-side, so a hand-made request cannot write a field you turned off.
+Only the items switched on are rendered **and** acted on. The enabled list is
+read server-side, so a hand-made request cannot write a field or run an action
+you turned off.
+
+### The five actions
+
+| Switch | What it does |
+|---|---|
+| **Update feed now** | Fetches the feed immediately instead of waiting for the next scheduled refresh. |
+| **Reload articles** | Empties the feed's stored articles and fetches them again from the source. The feed stays subscribed. |
+| **Delete all articles** | Deletes the feed's stored articles. The feed stays subscribed and will refill on the next refresh. |
+| **Export articles (OPML)** | Downloads the feed's articles as an OPML file. Nothing is changed. |
+| **Remove feed** | Unsubscribes the feed and deletes its articles. This cannot be undone. |
+
+Every action runs in the panel and reports back in it: a spinner while the call
+is in flight, then a tick or a warning with the result. Buttons and the form dim
+while a call runs. The three destructive ones (Reload, Delete, Remove) ask for
+confirmation first.
 
 ## Things worth knowing
 
@@ -80,6 +99,28 @@ in **Settings → Extensions**. Enable Right Click Actions too.
 - [Right Click Actions](https://github.com/featurecreep-cron/freshrss-extensions/tree/main/xExtension-RightClickActions)
 
 ## Changelog
+
+**1.3.0** — the panel runs the feed's actions, not just its fields, and says so
+while it works.
+
+- **Five new switches** in an Actions group, all off by default: *Update feed now*,
+  *Reload articles* (empties the feed and fetches it again), *Delete all articles*
+  (keeps the feed), *Export articles* (OPML download) and *Remove feed*. That brings
+  the settings page to **22 switches** — 17 fields plus 5 actions — each with its
+  own toggle and live preview.
+- **Immediate feedback.** Every action and Save shows a status line in the panel
+  the moment it is pressed — a spinner while it runs, then a tick or a warning
+  with the result. The buttons and the form dim while a call is in flight, and
+  the destructive actions ask for confirmation first. Previously the only feedback
+  was whatever the page showed after a reload.
+- **Removing a feed** takes its row out of the sidebar without a reload.
+- Article retention moved into its own **Archiving** group, beside the new
+  Delete/Reload actions it relates to.
+- Refresh and Reload use FreshRSS's own actualizing path (reset `lastUpdate`,
+  then `actualizeFeedsAndCommit`), so they fetch real articles rather than trusting
+  the stored copy.
+- Actions are gated twice: the button is only drawn if it is switched on, and the
+  request is refused server-side if it is not.
 
 **1.2.0** — the panel covers the whole feed, and the settings page shows you what
 you are switching on.

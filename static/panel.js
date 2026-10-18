@@ -93,7 +93,12 @@
     },
     http_user: { label: 'HTTP username', type: 'text', placeholder: 'Only if the feed needs a login' },
     http_pass: { label: 'HTTP password', type: 'password', placeholder: 'Leave blank to keep stored' },
-    unread_count_readonly: { label: '', type: 'info' }
+    unread_count_readonly: { label: '', type: 'info' },
+    action_refresh_feed: { label: 'Update feed now', type: 'action', op: 'refresh', icon: '\u21BB' },
+    action_reload_articles: { label: 'Reload articles', type: 'action', op: 'reload', icon: '\u21BA' },
+    action_delete_articles: { label: 'Delete all articles', type: 'action', op: 'delete', icon: '\u2716', danger: true },
+    action_export: { label: 'Export articles', type: 'action', op: 'export', icon: '\u2913', link: true },
+    action_remove_feed: { label: 'Remove feed', type: 'action', op: 'remove', icon: '\u2716', danger: true }
   };
 
   // ---------------------------------------------------------------- helpers
@@ -127,13 +132,119 @@
   }
 
   function notify(msg, isError) {
-    try {
-      if (typeof window.showNotification === 'function') { window.showNotification(msg, !!isError); return; }
-    } catch (e) { /* fall through */ }
+    /* an inline banner in the panel is the primary signal while it is open;
+       the toast is only for when the panel has closed over the message. */
     var n = el('div', 'fsp-toast', msg);
     if (isError) n.classList.add('fsp-toast-error');
     document.body.appendChild(n);
     setTimeout(function () { n.remove(); }, 3500);
+  }
+
+  /*
+   * One visible place for "something is happening" and "it happened": the
+   * status strip above the buttons. Before this, pressing an action gave no
+   * feedback until the page reloaded.
+   */
+  function setStatus(msg, kind) {
+    if (!panel) return;
+    var status = panel.querySelector('.fsp-status');
+    if (!status) return;
+    status.textContent = msg || '';
+    status.classList.remove('fsp-status-busy', 'fsp-status-ok', 'fsp-status-error');
+    if (kind) status.classList.add('fsp-status-' + kind);
+  }
+
+  function setBusy(busy, btn) {
+    if (!panel) return;
+    panel.classList.toggle('fsp-busy', !!busy);
+    [].forEach.call(panel.querySelectorAll('.fsp-btn, .fsp-action'), function (b) {
+      if (busy) {
+        if (b.dataset.label === undefined) b.dataset.label = b.textContent;
+        b.disabled = true;
+      } else {
+        b.disabled = false;
+        if (b.dataset.label !== undefined && b.classList.contains('fsp-btn')) b.textContent = b.dataset.label;
+      }
+    });
+    if (busy && btn) btn.textContent = 'Working\u2026';
+  }
+
+  function actionUrl() {
+    return (payload && payload.actionUrl) || './?c=fsp&a=action';
+  }
+  function exportUrl() {
+    return (payload && payload.exportUrl) || './?c=fsp&a=export';
+  }
+
+  // Deleting articles and removing a feed are not undone by pressing Cancel.
+  function confirmAction(op, name) {
+    var text = op === 'remove'
+      ? 'Remove "' + name + '" and all of its articles?'
+      : op === 'delete'
+        ? 'Delete all stored articles of "' + name + '"? The feed stays subscribed.'
+        : 'Delete "' + name + '"\'s stored articles and fetch them again from the source?';
+    return window.confirm(text);
+  }
+
+  function runAction(op, name, btn) {
+    if ((op === 'remove' || op === 'delete' || op === 'reload') && !confirmAction(op, name)) return;
+    if (op === 'export') {
+      window.open(exportUrl() + '&id=' + encodeURIComponent(currentId), '_blank');
+      setStatus('Export started.', 'ok');
+      return;
+    }
+
+    var token = (payload && payload.csrf) || csrfFromPage();
+    if (!token) {
+      setStatus('Could not read the security token \u2014 reload the page and try again.', 'error');
+      return;
+    }
+
+    var fd = new FormData();
+    fd.append('_csrf', token);
+    fd.append('id', currentId);
+    fd.append('op', op);
+
+    var started = Date.now();
+    setBusy(true, btn);
+    setStatus('Working\u2026');
+
+    function done(msg, isError) {
+      // Keep the spinner visible for a beat so a fast call does not flash.
+      var wait = Math.max(0, 220 - (Date.now() - started));
+      setTimeout(function () {
+        setBusy(false);
+        setStatus(msg, isError ? 'error' : 'ok');
+        notify(msg, isError);
+      }, wait);
+    }
+
+    fetch(actionUrl(), {
+      method: 'POST', body: fd, credentials: 'same-origin',
+      headers: { Accept: 'application/json' }
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.j || !res.ok || res.j.error) {
+          done((res.j && res.j.error) || 'That action failed.', true);
+          return;
+        }
+        done(res.j.message || 'Done.', false);
+        if (res.j.removed) {
+          removeSidebarRow();
+          setTimeout(closePanel, 600);
+        }
+      })
+      .catch(function () { done('Could not reach the server.', true); });
+  }
+
+  // A removed feed must leave the sidebar without a reload.
+  function removeSidebarRow() {
+    if (!currentId) return;
+    var row = document.querySelector('.tree a[href*="get=f_' + currentId + '"]');
+    if (!row) return;
+    var item = row.closest('li') || row.parentNode;
+    if (item && item.parentNode) item.parentNode.removeChild(item);
   }
 
   // Every FreshRSS page carries the token in a form; used when there is no
@@ -244,7 +355,12 @@
     foot.innerHTML = '';
 
     var fields = (data.fields || []).filter(function (f) { return !!FIELDS[f]; });
-    if (!fields.length) {
+    var actionKeys = (data.actions || data.fields || []).filter(function (f) {
+      return FIELDS[f] && FIELDS[f].type === 'action';
+    });
+    var editFields = fields.filter(function (f) { return FIELDS[f].type !== 'action'; });
+
+    if (!editFields.length && !actionKeys.length) {
       body.appendChild(el('div', 'fsp-empty',
         'No fields are switched on. Choose them on the Feed Settings Panel extension page.'));
       return;
@@ -255,7 +371,7 @@
 
     function addField(key) {
       var def = FIELDS[key];
-      if (!def) return;
+      if (!def || def.type === 'action') return;
       var value = data.values[key];
       var wrap = el('div', 'fsp-field');
       var input;
@@ -312,6 +428,25 @@
     fields.forEach(addField);
     body.appendChild(form);
 
+    // Actions row: the operations this feed can have, above Save/Cancel.
+    if (actionKeys.length) {
+      var actBox = el('div', 'fsp-actionbox');
+      actBox.appendChild(el('div', 'fsp-actionbox-title', 'Actions'));
+      var actRow = el('div', 'fsp-actionrow');
+      actionKeys.forEach(function (key) {
+        var def = FIELDS[key];
+        var b = el('button', 'fsp-action' + (def.danger ? ' fsp-action-danger' : ''), (def.icon ? def.icon + '  ' : '') + def.label);
+        b.type = 'button';
+        b.title = def.label;
+        b.addEventListener('click', function () {
+          runAction(def.op, data.values.name || 'this feed', b);
+        });
+        actRow.appendChild(b);
+      });
+      actBox.appendChild(actRow);
+      body.appendChild(actBox);
+    }
+
     var actions = el('div', 'fsp-actions');
     var save = el('button', 'fsp-btn fsp-btn-primary', 'Save');
     save.type = 'button';
@@ -332,20 +467,19 @@
     cancel.addEventListener('click', closePanel);
 
     save.addEventListener('click', function () {
-      doSave(data.id, fields, inputs, save, status);
+      doSave(data.id, editFields, inputs, save);
     });
 
     var first = form.querySelector('.fsp-input');
     if (first) setTimeout(function () { first.focus(); first.select && first.select(); }, 30);
   }
 
-  function doSave(id, fields, inputs, saveBtn, status) {
+  function doSave(id, fields, inputs, saveBtn) {
     var fd = new FormData();
     fd.append('id', id);
     var token = (payload && payload.csrf) || csrfFromPage();
     if (!token) {
-      status.textContent = 'Could not read the security token — reload the page and try again.';
-      notify('Could not read the security token.', true);
+      setStatus('Could not read the security token \u2014 reload the page and try again.', 'error');
       return;
     }
     fd.append('_csrf', token);
@@ -360,9 +494,7 @@
     });
 
     saveBtn.disabled = true;
-    var oldLabel = saveBtn.textContent;
-    saveBtn.textContent = 'Saving…';
-    status.textContent = 'Saving…';
+    setStatus('Saving\u2026', 'busy');
 
     var base = (payload && payload.saveUrl) || './?c=fsp&a=save';
 
@@ -370,21 +502,16 @@
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         saveBtn.disabled = false;
-        saveBtn.textContent = oldLabel;
         if (!res.j || !res.ok || res.j.error) {
-          status.textContent = (res.j && res.j.error) || 'Save failed.';
-          notify((res.j && res.j.error) || 'Save failed.', true);
+          setStatus((res.j && res.j.error) || 'Save failed.', 'error');
           return;
         }
-        status.textContent = res.j.message || 'Saved.';
-        notify(res.j.message || 'Saved.', false);
+        setStatus(res.j.message || 'Saved.', 'ok');
         if (res.j.values) updateSidebarName(res.j.values.name);
       })
       .catch(function () {
         saveBtn.disabled = false;
-        saveBtn.textContent = oldLabel;
-        status.textContent = 'Could not reach the server.';
-        notify('Could not reach the server.', true);
+        setStatus('Could not reach the server.', 'error');
       });
   }
 

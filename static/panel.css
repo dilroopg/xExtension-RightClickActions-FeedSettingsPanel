@@ -169,3 +169,74 @@
 	background: var(--contrast-attention-background-color, #912621);
 	color: var(--contrast-attention-font-color, #eee);
 }
+
+/* ---------------------------------------------------------------- actions */
+
+.fsp-actionbox {
+	margin-top: .9rem;
+	padding-top: .75rem;
+	border-top: 1px solid var(--border-color-dark, #333);
+	display: flex;
+	flex-direction: column;
+	gap: .45rem;
+}
+.fsp-actionbox-title {
+	font-size: .75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--font-color-middle, #999);
+}
+.fsp-actionrow { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+.fsp-action {
+	cursor: pointer;
+	padding: .4rem .7rem;
+	border-radius: 3px;
+	border: 1px solid var(--border-color-middle, #666);
+	background: var(--background-color-light, #262626);
+	color: var(--font-color-light, #ccc);
+	font: inherit;
+	font-size: .85rem;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+.fsp-action:hover {
+	border-color: var(--contrast-border-color-hover, #0078e0);
+	color: var(--contrast-background-color-hover, #0078e0);
+}
+.fsp-action-danger:hover {
+	border-color: var(--contrast-attention-background-color, #912621);
+	color: var(--contrast-attention-background-color, #912621);
+}
+.fsp-action[disabled] { opacity: .5; cursor: default; }
+
+/* A running action dims the form; the status strip carries the spinner. */
+.fsp-panel.fsp-busy .fsp-body { opacity: .55; }
+
+/* --------------------------------------------------------------- status */
+
+.fsp-status {
+	font-size: .8rem;
+	color: var(--font-color-dark, #888);
+	min-height: 1.1em;
+	transition: color .15s;
+}
+.fsp-status-busy { color: var(--font-color-middle, #999); }
+.fsp-status-busy::before {
+	content: "";
+	display: inline-block;
+	width: .7em;
+	height: .7em;
+	margin-right: .45em;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	vertical-align: -.05em;
+	animation: fsp-spin .7s linear infinite;
+}
+@keyframes fsp-spin { to { transform: rotate(360deg); } }
+.fsp-status-ok { color: var(--contrast-background-color-hover, #4a9be0); }
+.fsp-status-ok::before { content: "\2713  "; }
+.fsp-status-error { color: var(--contrast-attention-background-color, #e57373); }
+.fsp-status-error::before { content: "\26A0  "; }
