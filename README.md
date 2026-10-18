@@ -79,6 +79,34 @@ in **Settings → Extensions**. Enable Right Click Actions too.
 - FreshRSS 1.28 or later
 - [Right Click Actions](https://github.com/featurecreep-cron/freshrss-extensions/tree/main/xExtension-RightClickActions)
 
+## Changelog
+
+**1.2.0** — the panel covers the whole feed, and the settings page shows you what
+you are switching on.
+
+- **17 fields across six groups** instead of four: Feed (title, URLs, description,
+  category, priority), Refresh (interval, mute), Display (unread count, enclosures,
+  sort order), Behaviour (updated-articles-unread, article retention), Access (HTTP
+  username/password) and Info (unread/total, read only). Each group has a *toggle all*
+  shortcut.
+- **A live preview** beside the switches redraws as you toggle, so a field's effect is
+  visible before you save it. Built from the same field definitions the panel uses, so
+  the two cannot drift.
+- **A dependency banner** on the settings page states plainly that this needs Right
+  Click Actions, and says so out loud when that extension is disabled.
+- **An Open panel for… picker** on the settings page, so the panel is reachable even
+  with Right Click Actions turned off.
+- Retention is written into core's single nested `archiving` attribute, merged with its
+  sibling values rather than replacing them.
+
+**1.1.0** — the extension is named `Right Click Actions - Feed Settings Panel` and its
+directory sorts next to Right Click Actions, so the two appear together in the
+extension list.
+
+**1.0.0** — first release. Floating panel over the current page for Title, Feed URL,
+Description and Website URL, opened by right-clicking a sidebar feed (through Right
+Click Actions) or a feed in the article list. Field selection saved per user.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
