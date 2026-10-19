@@ -1,6 +1,6 @@
 # Right Click Actions - Feed Settings Panel
 
-Part of [dilroopg's FreshRSS extensions](https://github.com/dilroopg/freshrss-extensions) — see the hub for everything else.
+Part of [hardlysleeping's FreshRSS extensions](https://github.com/hardlysleeping/freshrss-extensions) — see the hub for everything else.
 
 Open a feed's settings in a floating panel over the page you are already on,
 instead of navigating away to the subscription page.
