@@ -153,3 +153,7 @@ Click Actions) or a feed in the article list. Field selection saved per user.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Support
+
+[![Donate with PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=RNT5W4XNC64EY)
