@@ -102,6 +102,26 @@ in **Settings → Extensions**. Enable Right Click Actions too.
 
 ## Changelog
 
+**1.3.1** — the action buttons work. 1.3.0 shipped all four of them broken.
+
+- **Every action was refused with "Unknown action" and did nothing.** The request
+  check compared the short op the panel posts (`remove`) against the internal
+  field key (`action_remove_feed`), so *Update feed now*, *Reload articles*,
+  *Delete all articles* and *Remove feed* were all dead on arrival — the entire
+  point of 1.3.0. The "switched off" check below it had the same mix-up, so it
+  would have refused all four a second way once the first was fixed. Both now
+  resolve the op through one op→field-key map. **Export articles was never
+  affected** — it is a separate endpoint with its own correct check.
+- **Removing a feed now reloads the page**, instead of deleting its sidebar row
+  by hand, so the tree, the stream and every count come from the server.
+- **Removing the feed you are reading no longer dumps you on FreshRSS's "page
+  not found" screen.** Reloading the removed feed's own URL is what produces
+  that page; the panel now sends you back to your feeds instead, and the
+  confirmation says so before you agree to it.
+- Made clear rather than left implied: the 1.3.0 note "Removing a feed takes its
+  row out of the sidebar without a reload" describes what that version intended,
+  not what it did — nothing it promised ran.
+
 **1.3.0** — the panel runs the feed's actions, not just its fields, and says so
 while it works.
 

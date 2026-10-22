@@ -20,8 +20,25 @@ final class FreshExtension_fsp_Controller extends Minz_ActionController
 {
 	private const EXT_NAME = 'Right Click Actions - Feed Settings Panel';
 
-	/** Every action the panel can run, in menu order. */
+	/** Every action the panel can run, in menu order. These are FIELD KEYS: they
+	 *  are what the state file stores and what the panel draws buttons from. */
 	private const ACTIONS = ['action_refresh_feed', 'action_reload_articles', 'action_delete_articles', 'action_export', 'action_remove_feed'];
+
+	/**
+	 * The SHORT op a request carries => the field key above.
+	 *
+	 * The panel posts `op=remove`; the state file and the button list speak
+	 * `action_remove_feed`. Validating the request against ACTIONS compared a
+	 * short op with a field key, so every action was refused as "Unknown
+	 * action" — and the same mix-up in the switched-off check would have
+	 * refused them all a second way once the first was fixed.
+	 */
+	private const OPS = [
+		'refresh' => 'action_refresh_feed',
+		'reload' => 'action_reload_articles',
+		'delete' => 'action_delete_articles',
+		'remove' => 'action_remove_feed',
+	];
 
 	/** Attribute-backed fields: key => attribute name (same names core uses). */
 	private const BOOL_ATTRS = [
@@ -82,12 +99,12 @@ final class FreshExtension_fsp_Controller extends Minz_ActionController
 		}
 
 		$op = Minz_Request::paramString('op');
-		if (!in_array($op, self::ACTIONS, true)) {
+		if (!isset(self::OPS[$op])) {
 			$this->sendJson(['error' => 'Unknown action'], 400);
 		}
 		// The panel only draws buttons for switched-on actions, so seeing the
 		// button is the authorisation. A stale page still gets refused here.
-		if (!in_array($op, $this->enabledActions(), true)) {
+		if (!in_array(self::OPS[$op], $this->enabledActions(), true)) {
 			$this->sendJson([
 				'error' => 'That action was switched off on the extension page. Reload this page and try again.',
 			], 403);

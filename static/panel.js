@@ -176,13 +176,33 @@
     return (payload && payload.exportUrl) || './?c=fsp&a=export';
   }
 
+  // The feed whose page we are on, if any. FreshRSS's stream URLs name it as
+  // get=f_<id>.
+  function viewingFeedId() {
+    var m = String(window.location.href).match(/[?&]get=f_(\d+)/);
+    return m ? m[1] : null;
+  }
+  // Where to go when the feed being viewed no longer exists. NOT a reload:
+  // reloading the URL that names the removed feed is exactly what makes
+  // FreshRSS answer with its "page not found" screen. The stream root is
+  // still a valid page afterwards.
+  function streamRootUrl() {
+    return window.location.pathname || './';
+  }
+  function isViewingCurrent() {
+    return currentId != null && String(viewingFeedId()) === String(currentId);
+  }
+
   // Deleting articles and removing a feed are not undone by pressing Cancel.
   function confirmAction(op, name) {
+    var active = op === 'remove' && isViewingCurrent();
     var text = op === 'remove'
       ? 'Remove "' + name + '" and all of its articles?'
+        + (active ? '\n\nThis is the feed you are reading right now — removing it takes you'
+          + ' back to your feeds.' : '')
       : op === 'delete'
         ? 'Delete all stored articles of "' + name + '"? The feed stays subscribed.'
-        : 'Delete "' + name + '"\'s stored articles and fetch them again from the source?';
+        : 'Delete "' + name + '\'s stored articles and fetch them again from the source?';
     return window.confirm(text);
   }
 
@@ -229,22 +249,20 @@
           done((res.j && res.j.error) || 'That action failed.', true);
           return;
         }
-        done(res.j.message || 'Done.', false);
+        var msg = res.j.message || 'Done.';
+        var wasViewing = !!res.j.removed && isViewingCurrent();
+        if (wasViewing) { msg += ' You were viewing it, so you are back at your feeds.'; }
+        done(msg, false);
         if (res.j.removed) {
-          removeSidebarRow();
-          setTimeout(closePanel, 600);
+          // Reload either way would be wrong for the feed you are ON: its URL
+          // no longer resolves, so go to the stream root instead.
+          setTimeout(function () {
+            if (wasViewing) { window.location.href = streamRootUrl(); }
+            else { window.location.reload(); }
+          }, 900);
         }
       })
       .catch(function () { done('Could not reach the server.', true); });
-  }
-
-  // A removed feed must leave the sidebar without a reload.
-  function removeSidebarRow() {
-    if (!currentId) return;
-    var row = document.querySelector('.tree a[href*="get=f_' + currentId + '"]');
-    if (!row) return;
-    var item = row.closest('li') || row.parentNode;
-    if (item && item.parentNode) item.parentNode.removeChild(item);
   }
 
   // Every FreshRSS page carries the token in a form; used when there is no

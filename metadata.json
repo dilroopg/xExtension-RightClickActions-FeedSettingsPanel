@@ -2,7 +2,7 @@
 	"name": "Right Click Actions - Feed Settings Panel",
 	"author": "hardlysleeping",
 	"description": "Adds a \"Feed settings (panel)\" button to the Right Click Actions menu: opens a feed's settings in a floating panel over the current page instead of navigating away, and runs the feed's actions in it (update now, reload articles, delete all articles, export OPML, remove feed) with live in-panel feedback. Requires the Right Click Actions extension — it adds one item to that extension's right-click menu and does nothing on its own. 22 switches on the extension page choose what appears, with a live preview of the panel.",
-	"version": "1.3.0",
+	"version": "1.3.1",
 	"entrypoint": "RightClickActionsFeedSettingsPanel",
 	"type": "user"
 }
